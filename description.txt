@@ -1,0 +1,16 @@
+The game is to crash as many enemy ships as possible. 
+The enemy will be firing at the same direction constantly.
+Try trajectoring the bullets and also try to collect shield so you won't get hit too much.
+For enemy ships it takes 200 fires to crash while for the player it is 2000.
+
+Shoot with space key
+
+Collectable assets:
+- Coin => 1pt each
+- Star => 3pts each
+- Shield => 0pt (used to destroy more ships without getting hit)
+- Heart => 0pt (removes 200 pts from player hit count!)
+
+Main task: to crash as many ships as possible => 30pts each
+
+NB - shield works only for 1 min
