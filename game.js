@@ -48,6 +48,7 @@ class PlayGame extends Phaser.Scene {
         this.load.image('shield', 'assets/shield.png')
         this.load.image('heart', 'assets/heart.png')
         this.load.image('crash', 'assets/crash.png')
+        this.load.image('shieldBig', 'assets/shieldBig.png')
     }
 
     create() {
@@ -95,7 +96,8 @@ class PlayGame extends Phaser.Scene {
         frameRate: 20,
     })
 
-    this.fireGroup = this.physics.add.group({}) 
+    this.playerFireGroup = this.physics.add.group({}) // so the shield won't block the player's fire
+    this.enemyFireGroup = this.physics.add.group({}) // so the shield blocks the enemy's fire only
     this.coinGroup = this.physics.add.group({})
     this.starGroup = this.physics.add.group({})
     this.heartGroup = this.physics.add.group({})
@@ -105,9 +107,9 @@ class PlayGame extends Phaser.Scene {
     this.physics.add.overlap(this.player, this.coinGroup, this.collectCoin, null, this)
     this.physics.add.overlap(this.player, this.heartGroup, this.collectHeart, null, this)
     this.physics.add.overlap(this.player, this.shieldGroup, this.collectShield, null, this)
-    this.physics.add.overlap(this.player, this.fireGroup, this.playerHit, null, this)
-    this.physics.add.overlap(this.enemy1, this.fireGroup, this.enemyHit, null, this)
-    this.physics.add.overlap(this.enemy2, this.fireGroup, this.enemyHit, null, this)
+    this.physics.add.overlap(this.player, this.enemyFireGroup, this.playerHit, null, this)
+    this.physics.add.overlap(this.enemy1, this.playerFireGroup, this.enemyHit, null, this)
+    this.physics.add.overlap(this.enemy2, this.playerFireGroup, this.enemyHit, null, this)
 
     this.scoreText = this.add.text(16, 3, "Total score: " + this.score, {fontSize: "15px", fill: "#000"})
     this.add.image(200, 10, "star")
@@ -120,7 +122,7 @@ class PlayGame extends Phaser.Scene {
     this.shieldText = this.add.text(520, 3, "0", {fontSize: "15px", fill: "#000"})
     this.add.image(600, 10, "crash")
     this.crashText = this.add.text(620, 3, "0", {fontSize: "15px", fill: "#000"})
-    this.playerHitText = this.add.text(720, 3, "Player hit: " + this.playerHitCount + "/2000"
+    this.playerHitText = this.add.text(720, 3, "Player hit count: " + this.playerHitCount + "/1000"
         , {fontSize: "15px", fill: "#000"})
 
     
@@ -155,10 +157,11 @@ class PlayGame extends Phaser.Scene {
     }
 
     addHeartShield() {
-        this.heartGroup.create(2900, Phaser.Math.Between(50, game.config.height-50), "heart")
+        this.heartGroup.create(2500, Phaser.Math.Between(50, game.config.height-50), "heart")
         this.heartGroup.setVelocityX(-200)
-        this.shieldGroup.create(3900, Phaser.Math.Between(50, game.config.height-50), "shield")
+        this.shieldGroup.create(2500, Phaser.Math.Between(50, game.config.height-50), "shield")
         this.shieldGroup.setVelocityX(-200)
+
     }
 
     collectStar(player, star) {
@@ -185,39 +188,57 @@ class PlayGame extends Phaser.Scene {
             this.playerHitCount = 0
     }
 
-    collectShield(player, shield) {
-        shield.disableBody(true, true)
+    collectShield(player, shield) { // creates shield for 7 seconds
+
+        shield.disableBody(true, true) // remove small shield asset from screen
         this.shieldText.setText(parseInt(this.shieldText.text) + 1)
 
+        this.shield1 = this.physics.add.sprite(this.player.x + 100, this.enemy1.y, 'shieldBig')
+        this.shield2 = this.physics.add.sprite(this.player.x + 100, this.enemy2.y, 'shieldBig')
+        this.physics.add.overlap(this.shield1, this.enemyFireGroup, this.shieldBlock, null, this)
+        this.physics.add.overlap(this.shield2, this.enemyFireGroup, this.shieldBlock, null, this)
 
+        this.shieldTimer = this.time.addEvent({
+            callback: () => { this.shield1.destroy(); this.shield2.destroy() },
+            callbackScope: this,
+            delay: 7000,
+            loop: false
+        })
+    }
+
+    shieldBlock(shield, fire) {
+        fire.disableBody(true, true)
     }
     
-    playerFire (){
-        console.log('fire')
-        let fire = this.fireGroup.create(this.player.x+30, this.player.y, "fire")
+    playerFire() { // makes player fire every time space is pressed
+
+        let fire = this.playerFireGroup.create(this.player.x+30, this.player.y, "fire")
         fire.setVelocityX(1000)
     }
 
-    enemyFire() {
-        let fire1 = this.fireGroup.create(this.enemy1.x-50, this.enemy1.y, "fire")
+    enemyFire() { // makes enemy fire every 0.3 seconds
+
+        let fire1 = this.enemyFireGroup.create(this.enemy1.x-50, this.enemy1.y, "fire")
         fire1.setFlipX(true) // flip the fire to face the player
         fire1.setVelocityX(-1000)
-        let fire2 = this.fireGroup.create(this.enemy2.x-50, this.enemy2.y, "fire")
+        let fire2 = this.enemyFireGroup.create(this.enemy2.x-50, this.enemy2.y, "fire")
         fire2.setFlipX(true)
         fire2.setVelocityX(-1000)
 
-        if (this.playerHitCount == 2000) { 
+        if (this.playerHitCount == 1000) { // stop firing when player is hit 1000 times
             this.fireTimer.destroy()
         }
     }
 
-    playerHit(player, fire) {
+    playerHit(player, fire) { // when player is hit, increases player hit count
+
         fire.disableBody(true, true)
         this.playerHitCount += 1
-        this.playerHitText.setText("Player hit: " + this.playerHitCount + "/2000")
+        this.playerHitText.setText("Player hit count: " + this.playerHitCount + "/1000")
     }
 
-    enemyHit(enemy, fire) {
+    enemyHit(enemy, fire) { // when enemy is hit, increases enemy hit count
+
         this.active = enemy
         fire.disableBody(true, true)
         if (enemy == this.enemy1) {
@@ -228,31 +249,30 @@ class PlayGame extends Phaser.Scene {
         }
     }
 
-    newEnemy() { // create new enemy in random location, if one is destroyed
+    newEnemy() { // creates new enemy in random location, if one is destroyed
+
         this.active.disableBody(true, true)
+
         if (this.active == this.enemy1) {
-            //console.log('enemy1')
             this.enemy1HitCount = 0
             this.active  = this.enemy1
             this.enemy1 = this.physics.add.sprite(1000, Phaser.Math.Between(50, game.config.height/2), 'enemy');
-            this.physics.add.overlap(this.enemy1, this.fireGroup, this.enemyHit, null, this)
-            let fire = this.fireGroup.create(this.enemy1.x, this.enemy1.y, "fire")
+            this.physics.add.overlap(this.enemy1, this.playerFireGroup, this.enemyHit, null, this)
+            let fire = this.enemyFireGroup.create(this.enemy1.x, this.enemy1.y, "fire")
             fire.setVelocityX(-1000)
         }
         else {
-            //console.log('enemy2')
             this.enemy2HitCount = 0
             this.active = this.enemy2
             this.enemy2 = this.physics.add.sprite(1000, Phaser.Math.Between(game.config.height/2 + 10, game.config.height-50), 'enemy');
-            this.physics.add.overlap(this.enemy2, this.fireGroup, this.enemyHit, null, this)
-            let fire = this.fireGroup.create(this.enemy2.x, this.enemy2.y, "fire")
+            this.physics.add.overlap(this.enemy2, this.playerFireGroup, this.enemyHit, null, this)
+            let fire = this.enemyFireGroup.create(this.enemy2.x, this.enemy2.y, "fire")
             fire.setVelocityX(-1000)
         }
-
     }
 
     update() {
-        if(this.cursors.space.isDown) {
+        if(this.cursors.space.isDown) { // fire when space is pressed
             this.playerFire()
         }
         if(this.cursors.left.isDown) {
@@ -296,7 +316,7 @@ class PlayGame extends Phaser.Scene {
             })
         }
 
-        if (this.playerHitCount == 2000) {
+        if (this.playerHitCount == 1000) {
             this.player.disableBody(true, true)
             this.add.image(this.player.x, this.player.y, 'blast')
             this.gameOverText = this.add.text(400, 250, 'Game Over', {fontSize: '64px', fill: '#000'})
